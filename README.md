@@ -27,7 +27,7 @@ Visit [http://localhost:8000](http://localhost:8000).
 docker compose -p looplink down
 ```
 
-> **WSL note:** If Docker runs inside WSL (not Docker Desktop), work from within the WSL distribution. Place the project on the WSL filesystem for better I/O performance.
+> **Note:** If you are running this for the first time, you may encounter an error, Please run webpack to fix error.
 
 ### Development Mode
 
