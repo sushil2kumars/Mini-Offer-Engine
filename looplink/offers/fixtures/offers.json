@@ -1,0 +1,63 @@
+{
+  "offers": [
+    {
+      "offer_id": "OFFER10PCT-MILK",
+      "type": "PRODUCT_PERCENT_DISCOUNT",
+      "name": "10% off Milk",
+      "details": {
+        "sku": "SKU-MILK",
+        "percent": 10
+      }
+    },
+    {
+      "offer_id": "OFFER15PCT-BREAD",
+      "type": "PRODUCT_PERCENT_DISCOUNT",
+      "name": "15% off Bakery Items",
+      "details": {
+        "sku": "SKU-BREAD",
+        "percent": 15
+      }
+    },
+    {
+      "offer_id": "OFFER-BOGO-CHEESE",
+      "type": "BOGO",
+      "name": "Buy 1 Get 1 Free Cheese",
+      "details": {
+        "sku": "SKU-CHEESE"
+      }
+    },
+    {
+      "offer_id": "OFFER5-OFF-50",
+      "type": "CART_FIXED_DISCOUNT",
+      "name": "$5 off orders over $50",
+      "details": {
+        "threshold": 50.00,
+        "discount": 5.00
+      }
+    },
+    {
+      "offer_id": "OFFER-STICKER-EARN",
+      "type": "STICKER_EARN",
+      "name": "Sticker Reward",
+      "details": {
+        "rate_per_10": 1,
+        "promo_skus": ["SKU-ORGANIC"],
+        "promo_bonus": 1,
+        "max_per_transaction": 5
+      }
+    },
+    {
+      "offer_id": "OFFER-CAMPAIGN-WED",
+      "type": "STICKER_CAMPAIGN",
+      "name": "Wednesday Double Stickers",
+      "details": {
+        "weekday_bonus": {
+          "wednesday": 2
+        },
+        "min_basket": 5.00,
+        "store_ids": ["STORE1"],
+        "bonus_stickers": 1
+      }
+    }
+  ]
+}
