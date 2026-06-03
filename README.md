@@ -9,6 +9,38 @@ Django project using front-end libraries:
 
 ---
 
+## Quick Start with Docker
+
+Build and run the entire stack (PostgreSQL, Redis, Django app) with Docker Compose:
+
+```sh
+docker compose -p looplink up --build -d
+```
+
+Run database migrations:
+
+```sh
+docker compose -p looplink exec web python manage.py migrate
+```
+
+View logs:
+
+```sh
+docker compose -p looplink logs -f
+```
+
+The application will be available at [http://localhost:8000](http://localhost:8000).
+
+To stop all services:
+
+```sh
+docker compose -p looplink down
+```
+
+> **Note on WSL:** If Docker is installed inside WSL rather than Docker Desktop, run the above commands from within your WSL distribution. The project files can be placed in the WSL filesystem for better I/O performance.
+
+---
+
 ## Where to Look First
 
 If you're new to this project, here are some good starting points:
