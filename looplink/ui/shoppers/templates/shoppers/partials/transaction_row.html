@@ -1,0 +1,27 @@
+{% load common_tags %}
+<div class="bg-white rounded-lg border border-stone-200 overflow-hidden">
+  <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-stone-50 transition-colors"
+       dj-hx-action="transaction_detail"
+       hx-get="{% url 'shoppers_portal_detail' shopper.shopper_id %}?transaction_id={{ transaction.transaction_id }}"
+       hx-target="#tx-detail-{{ transaction.transaction_id|slugify }}"
+       hx-swap="innerHTML"
+       hx-indicator="#tx-indicator-{{ transaction.transaction_id|slugify }}">
+    <div class="flex items-center gap-4">
+      <span class="font-mono text-sm text-stone-500">{{ transaction.transaction_id }}</span>
+      <span class="text-stone-400 hidden sm:inline">{{ transaction.timestamp|date:"M j, Y  H:i" }}</span>
+    </div>
+    <div class="flex items-center gap-6">
+      <span class="text-stone-700 font-mono">${{ transaction.final_total }}</span>
+      <span class="text-amber-600 text-sm font-mono">{{ transaction.stickers_earned }} stickers</span>
+      <svg class="w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+      </svg>
+    </div>
+  </div>
+  <div id="tx-detail-{{ transaction.transaction_id|slugify }}">
+    <div id="tx-indicator-{{ transaction.transaction_id|slugify }}"
+         class="htmx-request:block hidden text-center py-2 text-sm text-stone-400">
+      Loading details...
+    </div>
+  </div>
+</div>

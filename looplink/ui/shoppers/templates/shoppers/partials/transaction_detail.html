@@ -1,0 +1,93 @@
+<div class="border-t border-stone-100 px-4 py-3 bg-stone-50 text-sm">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3">
+    <div>
+      <span class="text-stone-400 text-xs">Store</span>
+      <p class="font-mono text-stone-700">{{ transaction.store_id }}</p>
+    </div>
+    <div>
+      <span class="text-stone-400 text-xs">Date</span>
+      <p class="font-mono text-stone-700">{{ transaction.timestamp|date:"M j, Y  H:i" }}</p>
+    </div>
+    <div>
+      <span class="text-stone-400 text-xs">Basket Total</span>
+      <p class="font-mono text-stone-700">${{ transaction.basket_total }}</p>
+    </div>
+    <div>
+      <span class="text-stone-400 text-xs">Discount</span>
+      <p class="font-mono text-emerald-600">-${{ transaction.total_discount }}</p>
+    </div>
+  </div>
+
+  <div class="border-t border-stone-200 pt-3">
+    <span class="text-stone-400 text-xs block mb-2">Applied Offers</span>
+    {% for offer in offers %}
+      <div class="flex items-center justify-between py-1">
+        <div class="flex items-center gap-2">
+          <span class="font-mono text-xs text-stone-500">{{ offer.offer_id }}</span>
+          <span class="text-stone-700">{{ offer.offer_name }}</span>
+        </div>
+        <div class="flex items-center gap-4">
+          {% if offer.discount_amount > 0 %}
+            <span class="text-emerald-600 font-mono text-sm">-${{ offer.discount_amount }}</span>
+          {% endif %}
+          {% if offer.stickers_earned > 0 %}
+            <span class="text-amber-600 text-sm">+{{ offer.stickers_earned }} stickers</span>
+          {% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-stone-400 text-xs">No offers applied.</p>
+    {% endfor %}
+  </div>
+
+  <div class="border-t border-stone-200 pt-3 mt-2">
+    <span class="text-stone-400 text-xs block mb-2">Items</span>
+    <table class="w-full text-xs">
+      <thead>
+        <tr class="text-left text-stone-400 uppercase tracking-wider border-b border-stone-200">
+          <th class="pb-1 pr-2 font-medium">Product</th>
+          <th class="pb-1 pr-2 font-medium">Qty</th>
+          <th class="pb-1 pr-2 font-medium">Price</th>
+          <th class="pb-1 pr-2 font-medium">Discount</th>
+          <th class="pb-1 text-right font-medium">Total</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-stone-100">
+        {% for item in transaction.processed_items %}
+          <tr class="{% if item.discounts %}text-emerald-800{% else %}text-stone-600{% endif %}">
+            <td class="py-1 pr-2 font-medium">{{ item.name }}</td>
+            <td class="py-1 pr-2 font-mono">{{ item.quantity }}</td>
+            <td class="py-1 pr-2 font-mono">${{ item.original_unit_price }}</td>
+            <td class="py-1 pr-2">
+              {% if item.discounts %}
+                {% for d in item.discounts %}
+                  <span class="text-emerald-600">-{{ d.offer_name }} (-${{ d.discount_amount }})</span>
+                {% endfor %}
+              {% else %}
+                <span class="text-stone-300">&mdash;</span>
+              {% endif %}
+            </td>
+            <td class="py-1 text-right font-mono">${{ item.line_final }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="border-t border-stone-200">
+        <tr class="text-stone-700 font-medium">
+          <td colspan="4" class="pt-1 pr-2 text-right">Total Discount</td>
+          <td class="pt-1 text-right font-mono text-emerald-600">-${{ transaction.total_discount }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="border-t border-stone-200 pt-3 mt-2 flex justify-between items-center">
+    <span class="text-stone-600 font-medium">Final Total</span>
+    <span class="text-stone-800 font-mono font-semibold">${{ transaction.final_total }}</span>
+  </div>
+  <div class="border-t border-stone-100 pt-2 mt-2 text-right">
+    <a href="{% url 'transaction_trace' transaction.transaction_id %}"
+       class="text-xs text-stone-400 hover:text-emerald-600 transition-colors">
+      Trace &rarr;
+    </a>
+  </div>
+</div>

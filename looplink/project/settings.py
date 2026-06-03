@@ -33,9 +33,14 @@ THIRD_PARTY_APPS = [
 ]
 PROJECT_APPS = [
     "looplink.django_ext",
+    "looplink.offers",
+    "looplink.transactions",
+    "looplink.shoppers",
 ]
 UI_APPS = [
     "looplink.ui.base",
+    "looplink.ui.shoppers",
+    "looplink.ui.stats",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + PROJECT_APPS + UI_APPS
 
@@ -96,10 +101,11 @@ DB_REPLICAS = []
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ─── CACHES & SESSIONS ──────────────────────────────────────────────────────────
+REDIS_HOST = env.str("REDIS_HOST", default="localhost")
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://localhost:6379/0",
+        "LOCATION": f"redis://{REDIS_HOST}:6379/0",
         "OPTIONS": {
             "health_check_interval": 30,
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
@@ -161,10 +167,18 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "simple",
         },
+        "file": {
+            "level": LOG_LEVEL,
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "looplink.log",
+            "maxBytes": 10485760,
+            "backupCount": 3,
+            "formatter": "simple",
+        },
     },
     "root": {
         "level": LOG_LEVEL,
-        "handlers": ["console"],
+        "handlers": ["console", "file"],
     },
     "loggers": {
         "django": {

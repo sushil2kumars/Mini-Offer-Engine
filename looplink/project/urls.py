@@ -7,4 +7,8 @@ urlpatterns = [
     path("favicon.ico", RedirectView.as_view(url=static("base/images/favicon.png"), permanent=True)),
     path("", include("looplink.ui.base.urls")),
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
+    path("api/", include("looplink.transactions.urls")),
+    path("api/shoppers/", include("looplink.shoppers.urls")),
+    path("shoppers/", include("looplink.ui.shoppers.urls")),
+    path("stats/", include("looplink.ui.stats.urls")),
 ]

@@ -41,6 +41,11 @@ def JSON(obj):
 
 
 @register.filter
+def JSON_PRETTY(obj):
+    return json.dumps(obj, indent=2)
+
+
+@register.filter
 def BOOL(obj):
     try:
         obj = obj.to_json()

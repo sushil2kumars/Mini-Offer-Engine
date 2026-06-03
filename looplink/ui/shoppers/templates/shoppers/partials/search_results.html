@@ -1,0 +1,26 @@
+{% if shoppers is None %}
+  <div class="text-center text-stone-400 py-12">
+    <p class="text-lg">Type a shopper ID to begin searching.</p>
+  </div>
+{% elif shoppers %}
+  <div class="space-y-3">
+    {% for shopper in shoppers %}
+      <a href="{% url 'shoppers_portal_detail' shopper.shopper_id %}"
+         class="block bg-white rounded-lg border border-stone-200 p-4 hover:border-emerald-300 hover:shadow-sm transition-all">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-mono text-stone-800">{{ shopper.shopper_id }}</div>
+            {% if shopper.store_id %}
+              <div class="text-sm text-stone-400 mt-0.5">{{ shopper.store_id }}</div>
+            {% endif %}
+          </div>
+          <span class="text-amber-600 font-medium">{{ shopper.sticker_balance }} stickers</span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="text-center text-stone-400 py-12">
+    <p class="text-lg">No shoppers found matching that ID.</p>
+  </div>
+{% endif %}

@@ -1,0 +1,147 @@
+{% extends "base/layout.html" %}
+{% load i18n %}
+{% load common_tags %}
+
+{% js_entry "base/common_entry" %}
+
+{% block title %}Trace: {{ transaction.transaction_id }}{% endblock title %}
+
+{% block content %}
+<div class="min-h-screen bg-stone-50">
+  <div class="max-w-5xl mx-auto px-4 py-8">
+
+    <div class="flex items-center gap-3 mb-6">
+      <a href="{% url 'shoppers_search' %}" class="text-emerald-600 hover:text-emerald-700 text-sm">&larr; Back to search</a>
+      <span class="text-stone-300">|</span>
+      <a href="{% url 'shoppers_portal_detail' transaction.shopper_id %}" class="text-emerald-600 hover:text-emerald-700 text-sm">Shopper detail</a>
+    </div>
+
+    <h1 class="text-2xl font-semibold text-stone-800 mb-1">Transaction Trace</h1>
+    <p class="font-mono font-bold text-stone-700 mb-6">{{ transaction.transaction_id }}</p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-5">
+      <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Basket Total</div>
+      <div class="text-2xl font-semibold text-stone-800 font-mono">${{ transaction.basket_total }}</div>
+    </div>
+  
+    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-5">
+      <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Discount</div>
+      <div class="text-2xl font-semibold text-emerald-600 font-mono">-${{ transaction.total_discount }}</div>
+    </div>
+  
+    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-5">
+      <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Final Total</div>
+      <div class="text-2xl font-semibold text-stone-800 font-mono">${{ transaction.final_total }}</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-5">
+      <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Stickers Earned</div>
+      <div class="text-2xl font-semibold text-amber-600 font-mono">+{{ transaction.stickers_earned }}</div>
+    </div>
+  </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden mb-8">
+      <div class="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-stone-700">Raw Transaction</h2>
+        <span class="text-xs text-stone-400 font-mono">{{ transaction.status }}</span>
+      </div>
+      <div class="p-5 space-y-3 text-sm">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <span class="text-stone-400 text-xs">Shopper</span>
+            <p class="font-mono text-stone-700">{{ transaction.shopper_id }}</p>
+          </div>
+          <div>
+            <span class="text-stone-400 text-xs">Store</span>
+            <p class="font-mono text-stone-700">{{ transaction.store_id }}</p>
+          </div>
+          <div>
+            <span class="text-stone-400 text-xs">Timestamp</span>
+            <p class="font-mono text-stone-700">{{ transaction.timestamp }}</p>
+          </div>
+          <div>
+            <span class="text-stone-400 text-xs">Processed At</span>
+            <p class="font-mono text-stone-700">{{ transaction.processed_at }}</p>
+          </div>
+        </div>
+        <div class="border-t border-stone-100 pt-3">
+          <span class="text-stone-400 text-xs block mb-2">Items</span>
+          <pre class="bg-stone-50 rounded-lg p-4 text-xs font-mono text-stone-700 overflow-x-auto">{{ transaction.items|JSON_PRETTY }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden mb-8">
+      <div class="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-stone-700">Applied Offers</h2>
+        <span class="text-xs text-stone-400">{{ applied_offers|length }} of {{ all_offer_count }} offers</span>
+      </div>
+      {% if applied_offers %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-stone-400 text-xs uppercase tracking-wider border-b border-stone-100">
+                <th class="px-5 py-3 font-medium">Offer ID</th>
+                <th class="px-5 py-3 font-medium">Type</th>
+                <th class="px-5 py-3 font-medium">Name</th>
+                <th class="px-5 py-3 font-medium">Discount</th>
+                <th class="px-5 py-3 font-medium">Stickers</th>
+                <th class="px-5 py-3 font-medium">Detail</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100">
+              {% for offer in applied_offers %}
+                <tr class="hover:bg-stone-50 transition-colors">
+                  <td class="px-5 py-3 font-mono text-xs text-stone-500">{{ offer.offer_id }}</td>
+                  <td class="px-5 py-3 font-mono text-xs text-stone-500">{{ offer.offer_type }}</td>
+                  <td class="px-5 py-3 text-stone-700">{{ offer.offer_name }}</td>
+                  <td class="px-5 py-3 font-mono text-emerald-600">{% if offer.discount_amount > 0 %}-${{ offer.discount_amount }}{% endif %}</td>
+                  <td class="px-5 py-3 font-mono text-amber-600">{% if offer.stickers_earned > 0 %}+{{ offer.stickers_earned }}{% endif %}</td>
+                  <td class="px-5 py-3">
+                    <details class="group">
+                      <summary class="text-emerald-600 hover:text-emerald-700 cursor-pointer text-xs">show</summary>
+                      <pre class="mt-2 bg-stone-50 rounded p-2 text-xs font-mono text-stone-600 overflow-x-auto">{{ offer.detail|JSON_PRETTY }}</pre>
+                    </details>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-stone-400 text-sm">No offers were applied to this transaction.</div>
+      {% endif %}
+    </div>
+
+    {% if non_applied_offers %}
+      <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden mb-8">
+        <div class="px-5 py-4 border-b border-stone-100">
+          <h2 class="text-lg font-semibold text-stone-700">Non-Applied Offers</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-stone-400 text-xs uppercase tracking-wider border-b border-stone-100">
+                <th class="px-5 py-3 font-medium">Offer ID</th>
+                <th class="px-5 py-3 font-medium">Type</th>
+                <th class="px-5 py-3 font-medium">Name</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100">
+              {% for offer in non_applied_offers %}
+                <tr class="hover:bg-stone-50 transition-colors">
+                  <td class="px-5 py-3 font-mono text-xs text-stone-400">{{ offer.offer_id }}</td>
+                  <td class="px-5 py-3 font-mono text-xs text-stone-400">{{ offer.type }}</td>
+                  <td class="px-5 py-3 text-stone-500">{{ offer.name }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock content %}
