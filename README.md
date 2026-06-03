@@ -17,8 +17,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for:
 ## Quick Start with Docker
 
 ```sh
-docker compose -p looplink up --build -d
-docker compose -p looplink exec web python manage.py migrate
+docker compose -p looplink up --build -d && \
+docker compose -p looplink exec web python manage.py migrate && \
+docker compose -p looplink --profile dev up -d webpack
 ```
 
 Visit [http://localhost:8000](http://localhost:8000).
@@ -26,8 +27,6 @@ Visit [http://localhost:8000](http://localhost:8000).
 ```sh
 docker compose -p looplink down
 ```
-
-> **Note:** If you are running this for the first time, you may encounter an error, Please run webpack to fix error.
 
 ### Development Mode
 
