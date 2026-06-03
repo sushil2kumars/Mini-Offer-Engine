@@ -30,6 +30,13 @@ services:
 
   web:
     build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+      - /app/.venv
+      - /app/node_modules
+      - /app/staticfiles
+      - /app/bundled_assets
     ports:
       - "8000:8000"
     env_file:
@@ -39,6 +46,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  webpack:
+    build: .
+    command: npm run watch
+    volumes:
+      - .:/app
+      - /app/.venv
+      - /app/node_modules
+      - /app/staticfiles
+      - /app/bundled_assets
+    profiles:
+      - dev
 
 volumes:
   postgres_data:

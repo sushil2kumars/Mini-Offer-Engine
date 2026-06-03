@@ -1,4 +1,4 @@
-# Looplink Starter Project
+# Looplink Mini-Offer-Engine
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Django project using front-end libraries:
@@ -38,6 +38,28 @@ docker compose -p looplink down
 ```
 
 > **Note on WSL:** If Docker is installed inside WSL rather than Docker Desktop, run the above commands from within your WSL distribution. The project files can be placed in the WSL filesystem for better I/O performance.
+
+### Development Mode
+
+For hot-reload on code changes, start with source code mounted:
+
+```sh
+docker compose -p looplink up --build -d
+```
+
+This mounts the project directory into the container so Python changes trigger an automatic server restart.
+
+To also auto-rebuild frontend assets (CSS/JS) on changes, start the webpack watcher:
+
+```sh
+docker compose -p looplink --profile dev up -d webpack
+```
+
+Rebuild the image after adding new Python or npm dependencies:
+
+```sh
+docker compose -p looplink build --no-cache web
+```
 
 ---
 
