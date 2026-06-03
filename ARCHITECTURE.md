@@ -68,12 +68,18 @@ Client                    API                     Engine                 Databas
   │                        ├───────Exist?──────────►│                      │
   │                        │◄──────Return cached────┤                      │
   │                        │                        │                      │
+  │                        │  Load shopper balance  │                      │
+  │                        │  (for sticker burn)    │                      │
+  │                        ├──────────────────────────────────────────────►│
+  │                        │◄──── shopper_balance ──┤                      │
+  │                        │                        │                      │
   │                        │  Load offers           │                      │
   │                        │  (from JSON fixture)   │                      │
   │                        │  cached via            │                      │
   │                        │  @functools.cache      │                      │
   │                        │                        │                      │
-  │                        │  evaluate(tx, offers)  │                      │
+  │                        │  evaluate(tx, offers,  │                      │
+  │                        │    shopper_balance)    │                      │
   │                        ├──────────────────────►│                      │
   │                        │                        │                      │
   │                        │  For each offer type   │                      │
@@ -81,22 +87,24 @@ Client                    API                     Engine                 Databas
   │                        │                        │                      │
   │                        │  1. PRODUCT_PERCENT    │                      │
   │                        │     Apply % discount   │                      │
-  │                        │     to matching SKUs   │                      │
   │                        │                        │                      │
   │                        │  2. BOGO               │                      │
   │                        │     Free units on      │                      │
-  │                        │     matching SKU       │                      │
   │                        │                        │                      │
   │                        │  3. CART_FIXED         │                      │
   │                        │     Fixed $ off if     │                      │
   │                        │     basket above       │                      │
   │                        │     threshold          │                      │
   │                        │                        │                      │
-  │                        │  4. STICKER_EARN       │                      │
+  │                        │  4. STICKER_BURN       │                      │
+  │                        │     Convert stickers   │                      │
+  │                        │     → $ discount       │                      │
+  │                        │                        │                      │
+  │                        │  5. STICKER_EARN       │                      │
   │                        │     Base sticker       │                      │
   │                        │     award per $10      │                      │
   │                        │                        │                      │
-  │                        │  5. STICKER_CAMPAIGN   │                      │
+  │                        │  6. STICKER_CAMPAIGN   │                      │
   │                        │     Bonus stickers     │                      │
   │                        │     per weekday/store  │                      │
   │                        │                        │                      │
@@ -106,8 +114,8 @@ Client                    API                     Engine                 Databas
   │                        ├──────────────────────────────────────────────►│
   │                        │  - Transaction row     │                      │
   │                        │  - AppliedOffer rows   │                      │
-  │                        │  - Shopper.sticker_    │                      │
-  │                        │    balance += earned   │                      │
+  │                        │  - Shopper.balance     │                      │
+  │                        │    += earned - burned  │                      │
   │                        │                        │                      │
   │◄────────────────────────┤                        │                      │
   │  201 Created /          │                        │                      │
@@ -120,19 +128,21 @@ Client                    API                     Engine                 Databas
 Offers are evaluated in a fixed order to ensure deterministic stacking:
 
 ```
-PRODUCT_PERCENT_DISCOUNT  →  BOGO  →  CART_FIXED_DISCOUNT  →  STICKER_EARN  →  STICKER_CAMPAIGN
-      │                        │              │                    │                   │
-      │                        │              │                    │                   │
-      ▼                        ▼              ▼                    ▼                   ▼
-  Mutates items          Mutates items    Reads running       Reads original      Reads original
-  (unit_price ↓)         (unit_price ↓)   total for          basket total         basket total
-                                           threshold check
+PRODUCT_PERCENT_DISCOUNT  →  BOGO  →  CART_FIXED_DISCOUNT  →  STICKER_BURN  →  STICKER_EARN  →  STICKER_CAMPAIGN
+      │                        │              │                    │               │                   │
+      │                        │              │                    │               │                   │
+      ▼                        ▼              ▼                    ▼               ▼                   ▼
+  Mutates items          Mutates items    Reads running       Reads running  Reads original      Reads original
+  (unit_price ↓)         (unit_price ↓)   total for          total +        basket total         basket total
+                                            threshold check   shopper
+                                                              balance
 ```
 
-- Monetary offers (1-3) stack against the basket, each reducing the running total.
+- Monetary offers (1-4) stack against the basket, each reducing the running total.
 - Product-level offers (1-2) mutate the item's `unit_price` in-place so subsequent offers apply to the already-discounted value.
 - `CART_FIXED_DISCOUNT` evaluates against the running total *after* product-level discounts.
-- Sticker offers (4-5) always evaluate against the *pre-discount* `basket_total` so rewards are predictable regardless of which monetary offers applied.
+- `STICKER_BURN` converts the shopper's pre-existing sticker balance into a monetary discount, evaluated against the running total after cart-level discounts.
+- Sticker offers (5-6) always evaluate against the *pre-discount* `basket_total` so rewards are predictable regardless of which monetary offers applied.
 - Campaign base earnings (`STICKER_CAMPAIGN`) are deduplicated against the standard `STICKER_EARN` base to avoid double-counting.
 
 ### Key Design Decisions
@@ -159,6 +169,47 @@ PRODUCT_PERCENT_DISCOUNT  →  BOGO  →  CART_FIXED_DISCOUNT  →  STICKER_EARN
 /stats/                     →  UI:   statistics dashboard
 /debug/tx/<id>/             →  UI:   transaction trace
 ```
+
+## Trade-offs
+
+### Idempotency Strategy
+
+| Approach | Trade-off |
+|---|---|
+| **Current: application-level dedup** on `transaction_id` via `Transaction.objects.filter(...).first()` before processing | No DB uniqueness constraint enforcement at the API layer — two concurrent requests for the same `transaction_id` could both pass the check. The `unique` constraint on `transaction_id` catches the second writer via `IntegrityError`, which triggers a retry path. |
+| **Alternative: DB-unique + early return** | Slightly slower happy path (always attempts INSERT), but eliminates the race window entirely. |
+
+The current split-check approach is chosen for latency: the read is cheap and avoids a write attempt for the common case (first submission). The `IntegrityError` fallback in `_persist_transaction` ensures correctness under contention.
+
+### Pure Engine vs. I/O-coupled Logic
+
+| Decision | Benefit | Cost |
+|---|---|---|
+| **Engine is pure** (`engine.py` has no DB or network calls) | Trivially testable; reusable from Celery tasks, management commands, REPL | Cannot access shopper balance or historical data without the caller passing it in |
+| **Offer catalogue as JSON fixture** | Zero database load on evaluation; startup-time cache via `@functools.cache` | Cannot update offers without a deployment/restart; no per-offer targeting rules |
+| **Items mutated in-place** for stacking | Simple, predictable evaluation order; no need for a complex rule engine | Offer interactions are implicit (order-dependent); adding new offer types requires careful placement in `EVALUATION_ORDER` |
+
+### Extensibility
+
+Adding a new offer type requires:
+1. Add a constant to `OfferType`
+2. Add it to `EVALUATION_ORDER`
+3. Write an `apply_*` function
+4. Add a dispatch branch in `_evaluate_offer`
+5. (Optional) Add a fixture entry and integration tests
+
+No interfaces or abstract base classes are used — the engine relies on duck-typing and a flat dispatch chain. For ~10 offer types this is pragmatic; beyond that, consider a plugin registry or strategy pattern.
+
+### Sticker Economy: Earn vs. Burn
+
+The `STICKER_BURN` offer type closes the sticker economy loop — shoppers earn stickers on purchases and can burn them at checkout for a monetary discount. Key trade-offs:
+
+| Decision | Rationale |
+|---|---|
+| **Burn evaluated against pre-earn balance** | Shoppers cannot spend stickers they earn in the same transaction, preventing circular dependency |
+| **Burn discount capped by `current_total`** | Basket never goes negative, consistent with other monetary offers |
+| **Sticker earn always based on pre-discount `basket_total`** | Rewards are predictable regardless of sticker-burn discount amount |
+| **Balance deduction happens in the same DB transaction** | Atomicity: if the discount is applied, the stickers are burned; partial failure cannot leave the system inconsistent |
 
 ## Scalability Considerations
 

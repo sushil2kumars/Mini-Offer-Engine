@@ -36,7 +36,7 @@ def _serialize_applied_offer(applied_offer: AppliedOffer) -> dict:
     }
 
 
-def _serialize_transaction(tx: Transaction, idempotent: bool = False) -> dict:
+def _serialize_transaction(tx: Transaction, idempotent: bool = False, stickers_burned: int = 0) -> dict:
     """Serialize a transaction together with its applied offers."""
     return {
         "transaction_id": tx.transaction_id,
@@ -45,6 +45,7 @@ def _serialize_transaction(tx: Transaction, idempotent: bool = False) -> dict:
         "total_discount": str(tx.total_discount),
         "final_total": str(tx.final_total),
         "stickers_earned": tx.stickers_earned,
+        "stickers_burned": stickers_burned,
         "applied_offers": [_serialize_applied_offer(ao) for ao in tx.applied_offers.all()],
         "idempotent": idempotent,
     }
@@ -64,15 +65,16 @@ def _normalize_items(items: list[dict]) -> list[dict]:
     ]
 
 
-def _credit_shopper_stickers(shopper_id: str, stickers_earned: int) -> None:
-    """Atomically add earned stickers to a shopper, creating the profile if needed.
+def _credit_shopper_stickers(shopper_id: str, stickers_earned: int, stickers_burned: int = 0) -> None:
+    """Atomically add earned stickers and deduct burned stickers.
 
     Uses an update-first strategy to avoid races: attempt the increment, and
-    only fall back to creating the profile when no row was updated. A nested
-    savepoint plus ``IntegrityError`` retry handles concurrent creation.
+    only fall back to creating the profile when no row was updated.
     """
+    net_change = stickers_earned - stickers_burned
+
     updated = ShopperProfile.objects.filter(shopper_id=shopper_id).update(
-        sticker_balance=F("sticker_balance") + stickers_earned,
+        sticker_balance=F("sticker_balance") + net_change,
         updated_at=timezone.now(),
     )
     if updated:
@@ -80,16 +82,16 @@ def _credit_shopper_stickers(shopper_id: str, stickers_earned: int) -> None:
 
     try:
         with transaction.atomic():
-            ShopperProfile.objects.create(shopper_id=shopper_id, sticker_balance=stickers_earned)
+            ShopperProfile.objects.create(shopper_id=shopper_id, sticker_balance=max(net_change, 0))
     except IntegrityError:
         ShopperProfile.objects.filter(shopper_id=shopper_id).update(
-            sticker_balance=F("sticker_balance") + stickers_earned,
+            sticker_balance=F("sticker_balance") + net_change,
             updated_at=timezone.now(),
         )
 
 
 def _persist_transaction(data: dict, result: EngineOutput) -> Transaction:
-    """Persist the transaction, its applied offers and the shopper sticker credit."""
+    """Persist the transaction, applied offers and the shopper sticker adjustment."""
     with transaction.atomic():
         tx = Transaction.objects.create(
             transaction_id=data["transaction_id"],
@@ -120,7 +122,7 @@ def _persist_transaction(data: dict, result: EngineOutput) -> Transaction:
             ]
         )
 
-        _credit_shopper_stickers(data["shopper_id"], result.stickers_earned)
+        _credit_shopper_stickers(data["shopper_id"], result.stickers_earned, result.stickers_burned)
 
     return tx
 
@@ -146,24 +148,37 @@ def ingest_transaction(request: Request) -> Response:
             tx_id,
             existing.shopper_id,
         )
-        return Response(_serialize_transaction(existing, idempotent=True), status=status.HTTP_200_OK)
+        burned = sum(
+            ao.detail.get("stickers_burned", 0)
+            for ao in existing.applied_offers.all()
+        )
+        return Response(
+            _serialize_transaction(existing, idempotent=True, stickers_burned=burned),
+            status=status.HTTP_200_OK,
+        )
+
+    shopper_balance = ShopperProfile.objects.filter(shopper_id=data["shopper_id"]).values_list(
+        "sticker_balance", flat=True
+    ).first() or 0
 
     offers = load_offers()
     logger.info(
-        "[TRACE:%s] Evaluating transaction shopper=%s store=%s items=%d offers_loaded=%s",
+        "[TRACE:%s] Evaluating transaction shopper=%s store=%s items=%d offers_loaded=%s balance=%s",
         tx_id,
         data["shopper_id"],
         data["store_id"],
         len(data["items"]),
         len(offers),
+        shopper_balance,
     )
-    result = evaluate(data, offers)
+    result = evaluate(data, offers, shopper_sticker_balance=shopper_balance)
     logger.info(
-        "[TRACE:%s] Evaluation complete discount=%s final_total=%s stickers=%s applied=%s",
+        "[TRACE:%s] Evaluation complete discount=%s final_total=%s stickers=%s burned=%s applied=%s",
         tx_id,
         result.total_discount,
         result.final_total,
         result.stickers_earned,
+        result.stickers_burned,
         [o.offer_id for o in result.applied_offers],
     )
 
@@ -171,17 +186,28 @@ def ingest_transaction(request: Request) -> Response:
         tx = _persist_transaction(data, result)
     except IntegrityError:
         existing = Transaction.objects.get(transaction_id=data["transaction_id"])
-        return Response(_serialize_transaction(existing, idempotent=True), status=status.HTTP_200_OK)
+        burned = sum(
+            ao.detail.get("stickers_burned", 0)
+            for ao in existing.applied_offers.all()
+        )
+        return Response(
+            _serialize_transaction(existing, idempotent=True, stickers_burned=burned),
+            status=status.HTTP_200_OK,
+        )
 
     logger.info(
-        "[TRACE:%s] Persisted transaction for shopper=%s discount=%s final_total=%s stickers=%s",
+        "[TRACE:%s] Persisted transaction for shopper=%s discount=%s final_total=%s stickers=%s burned=%s",
         tx.transaction_id,
         tx.shopper_id,
         result.total_discount,
         result.final_total,
         result.stickers_earned,
+        result.stickers_burned,
     )
-    return Response(_serialize_transaction(tx), status=status.HTTP_201_CREATED)
+    return Response(
+        _serialize_transaction(tx, stickers_burned=result.stickers_burned),
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["GET"])

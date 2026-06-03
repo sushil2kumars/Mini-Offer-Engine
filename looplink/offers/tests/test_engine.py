@@ -9,6 +9,7 @@ from looplink.offers.engine import (
     apply_bogo,
     apply_cart_fixed,
     apply_product_percent,
+    apply_sticker_burn,
     apply_sticker_campaign,
     apply_sticker_earn,
     evaluate,
@@ -253,6 +254,67 @@ class TestStickerEarnEdgeCases:
         items = [{"sku": "SKU-ORGANIC", "unit_price": "10.00", "quantity": 10}]
         result = apply_sticker_earn(items, Decimal("100.00"), OFFERS[3])
         assert result.stickers_earned == 5
+
+
+BURN_OFFER = {
+    "offer_id": "OFFER-BURN-10",
+    "type": "STICKER_BURN",
+    "name": "10 Stickers = $1 Off",
+    "details": {"stickers_per_dollar": 10, "max_stickers": 0},
+}
+
+BURN_OFFER_CAPPED = {
+    "offer_id": "OFFER-BURN-CAPPED",
+    "type": "STICKER_BURN",
+    "name": "Max 5 stickers per tx",
+    "details": {"stickers_per_dollar": 10, "max_stickers": 5},
+}
+
+
+class TestStickerBurn:
+    def test_burn_with_sufficient_balance(self):
+        result = apply_sticker_burn(Decimal("20.00"), 50, BURN_OFFER)
+        assert result.discount_amount == Decimal("5.00")
+        assert result.detail["stickers_burned"] == 50
+        assert result.detail["shopper_balance_before"] == 50
+
+    def test_no_balance_returns_zero_discount(self):
+        result = apply_sticker_burn(Decimal("20.00"), 0, BURN_OFFER)
+        assert result.discount_amount == Decimal("0.00")
+        assert "No sticker balance available" in result.detail["reason"]
+
+    def test_burn_capped_by_max_stickers(self):
+        result = apply_sticker_burn(Decimal("20.00"), 100, BURN_OFFER_CAPPED)
+        assert result.discount_amount == Decimal("0.50")
+        assert result.detail["stickers_burned"] == 5
+
+    def test_burn_capped_by_current_total(self):
+        result = apply_sticker_burn(Decimal("0.50"), 50, BURN_OFFER)
+        assert result.discount_amount == Decimal("0.50")
+        assert result.detail["stickers_burned"] == 5
+
+    def test_burn_negative_balance_treated_as_zero(self):
+        result = apply_sticker_burn(Decimal("20.00"), -10, BURN_OFFER)
+        assert result.discount_amount == Decimal("0.00")
+
+    def test_burn_with_evaluate_and_stacking(self):
+        tx = {
+            "items": [{"sku": "SKU-MILK", "unit_price": "10.00", "quantity": 2}],
+            "store_id": "STORE1",
+        }
+        offers = [BURN_OFFER]
+        result = evaluate(tx, offers, shopper_sticker_balance=30)
+        assert result.total_discount == Decimal("3.00")
+        assert result.final_total == Decimal("17.00")
+        assert result.stickers_burned == 30
+
+    def test_evaluate_returns_burned_stickers_in_output(self):
+        tx = {
+            "items": [{"sku": "SKU-MILK", "unit_price": "5.00", "quantity": 1}],
+        }
+        result = evaluate(tx, [BURN_OFFER], shopper_sticker_balance=10)
+        assert result.stickers_burned == 10
+        assert result.total_discount == Decimal("1.00")
 
 
 CAMPAIGN_OFFER = {

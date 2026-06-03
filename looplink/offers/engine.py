@@ -29,6 +29,7 @@ class OfferType:
     PRODUCT_PERCENT_DISCOUNT = "PRODUCT_PERCENT_DISCOUNT"
     BOGO = "BOGO"
     CART_FIXED_DISCOUNT = "CART_FIXED_DISCOUNT"
+    STICKER_BURN = "STICKER_BURN"
     STICKER_EARN = "STICKER_EARN"
     STICKER_CAMPAIGN = "STICKER_CAMPAIGN"
 
@@ -37,6 +38,7 @@ EVALUATION_ORDER = (
     OfferType.PRODUCT_PERCENT_DISCOUNT,
     OfferType.BOGO,
     OfferType.CART_FIXED_DISCOUNT,
+    OfferType.STICKER_BURN,
     OfferType.STICKER_EARN,
     OfferType.STICKER_CAMPAIGN,
 )
@@ -62,6 +64,7 @@ class EngineOutput:
     total_discount: Decimal
     final_total: Decimal
     stickers_earned: int
+    stickers_burned: int = 0
     applied_offers: list[OfferResult] = field(default_factory=list)
     processed_items: list[dict] = field(default_factory=list)
 
@@ -199,6 +202,52 @@ def apply_cart_fixed(basket_total: Decimal, offer: dict) -> OfferResult:
     )
 
 
+def apply_sticker_burn(
+    current_total: Decimal,
+    shopper_sticker_balance: int,
+    offer: dict,
+) -> OfferResult:
+    """Convert the shopper's sticker balance into a monetary discount.
+
+    Stickers are burned at the rate defined by the offer (e.g. 10 stickers
+    per $1). The discount is capped by the running basket total so the
+    order never goes negative.
+    """
+    details = offer["details"]
+    stickers_per_dollar = int(details.get("stickers_per_dollar", 10))
+    max_burn = int(details.get("max_stickers", 0))
+
+    if shopper_sticker_balance is None or shopper_sticker_balance <= 0:
+        return _build_result(
+            offer, ZERO, 0,
+            {"reason": "No sticker balance available"},
+        )
+
+    usable = min(shopper_sticker_balance, max_burn) if max_burn > 0 else shopper_sticker_balance
+    raw_discount = _money(Decimal(usable) / Decimal(stickers_per_dollar))
+    discounted = min(raw_discount, current_total)
+    burned = int(discounted * Decimal(stickers_per_dollar))
+
+    if discounted <= ZERO:
+        return _build_result(
+            offer, ZERO, 0,
+            {"reason": f"Balance {shopper_sticker_balance} below minimum burn threshold"},
+        )
+
+    return _build_result(
+        offer,
+        discount=discounted,
+        stickers=0,
+        detail={
+            "stickers_burned": burned,
+            "stickers_per_dollar": stickers_per_dollar,
+            "max_stickers": max_burn,
+            "shopper_balance_before": shopper_sticker_balance,
+            "rate": f"1/{stickers_per_dollar}",
+        },
+    )
+
+
 def apply_sticker_earn(items: list[dict], basket_total: Decimal, offer: dict) -> OfferResult:
     """Award stickers based on basket value plus optional promo-SKU bonuses.
 
@@ -299,11 +348,13 @@ def _evaluate_offer(
     current_total: Decimal,
     store_id: str,
     timestamp: datetime | None,
+    shopper_sticker_balance: int = 0,
 ) -> OfferResult | None:
     """Dispatch a single offer to its processor, returning ``None`` if unknown.
 
     ``CART_FIXED_DISCOUNT`` is evaluated against the running ``current_total``
-    (post product/BOGO discounts); all other offers evaluate against the
+    (post product/BOGO discounts); ``STICKER_BURN`` additionally requires the
+    shopper's current sticker balance. All other offers evaluate against the
     pre-discount ``basket_total``.
     """
     offer_type = offer["type"]
@@ -314,6 +365,8 @@ def _evaluate_offer(
         return apply_bogo(items, offer)
     if offer_type == OfferType.CART_FIXED_DISCOUNT:
         return apply_cart_fixed(current_total, offer)
+    if offer_type == OfferType.STICKER_BURN:
+        return apply_sticker_burn(current_total, shopper_sticker_balance, offer)
     if offer_type == OfferType.STICKER_EARN:
         return apply_sticker_earn(items, basket_total, offer)
     if offer_type == OfferType.STICKER_CAMPAIGN:
@@ -347,12 +400,19 @@ def _deduplicate_campaign_base(applied_offers: list[OfferResult]) -> int:
     return removed
 
 
-def evaluate(transaction: dict, offers: list[dict]) -> EngineOutput:
+def evaluate(
+    transaction: dict,
+    offers: list[dict],
+    shopper_sticker_balance: int = 0,
+) -> EngineOutput:
     """Evaluate every applicable offer against ``transaction``.
 
     Offers are processed in a deterministic order so monetary discounts stack
     predictably and never reduce the basket below zero. The input transaction
     is not mutated; a deep copy of its items is used as the working ledger.
+
+    If the offer set includes a ``STICKER_BURN`` offer, pass the shopper's
+    current sticker balance so the engine can convert stickers to a discount.
     """
     items = copy.deepcopy(transaction["items"])
     store_id = transaction.get("store_id", "")
@@ -365,6 +425,7 @@ def evaluate(transaction: dict, offers: list[dict]) -> EngineOutput:
     applied_offers: list[OfferResult] = []
     total_discount = ZERO
     total_stickers = 0
+    total_stickers_burned = 0
     current_total = basket_total
 
     for offer_type in EVALUATION_ORDER:
@@ -372,7 +433,10 @@ def evaluate(transaction: dict, offers: list[dict]) -> EngineOutput:
             if offer["type"] != offer_type:
                 continue
 
-            result = _evaluate_offer(offer, items, basket_total, current_total, store_id, timestamp)
+            result = _evaluate_offer(
+                offer, items, basket_total, current_total,
+                store_id, timestamp, shopper_sticker_balance,
+            )
             if result is None:
                 continue
 
@@ -386,6 +450,9 @@ def evaluate(transaction: dict, offers: list[dict]) -> EngineOutput:
             total_discount += capped_discount
             current_total -= capped_discount
             total_stickers += result.stickers_earned
+
+            if offer_type == OfferType.STICKER_BURN:
+                total_stickers_burned += result.detail.get("stickers_burned", 0)
 
     total_stickers -= _deduplicate_campaign_base(applied_offers)
 
@@ -414,6 +481,7 @@ def evaluate(transaction: dict, offers: list[dict]) -> EngineOutput:
         total_discount=_money(total_discount),
         final_total=_money(final_total),
         stickers_earned=total_stickers,
+        stickers_burned=total_stickers_burned,
         applied_offers=applied_offers,
         processed_items=processed_items,
     )

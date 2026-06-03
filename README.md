@@ -1,61 +1,43 @@
 # Looplink Mini-Offer-Engine
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-Django project using front-end libraries:
+A promotion evaluation engine with a REST API, server-rendered dashboards, and Docker-based deployment. Designed for deterministic offer stacking, idempotent transaction ingestion, and a full sticker economy (earn → burn → redeem).
 
-- [HTMX](https://htmx.org/)
-- [Alpine](https://alpinejs.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
+---
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for:
+- Project structure and layer diagram
+- Offer evaluation flow (sequence diagram, evaluation order)
+- Key design decisions and trade-offs (idempotency, extensibility, sticker economy)
+- Scalability considerations (caching, Celery/Redis async, horizontal scaling)
 
 ---
 
 ## Quick Start with Docker
 
-Build and run the entire stack (PostgreSQL, Redis, Django app) with Docker Compose:
-
 ```sh
 docker compose -p looplink up --build -d
-```
-
-Run database migrations:
-
-```sh
 docker compose -p looplink exec web python manage.py migrate
 ```
 
-View logs:
-
-```sh
-docker compose -p looplink logs -f
-```
-
-The application will be available at [http://localhost:8000](http://localhost:8000).
-
-To stop all services:
+Visit [http://localhost:8000](http://localhost:8000).
 
 ```sh
 docker compose -p looplink down
 ```
 
-> **Note on WSL:** If Docker is installed inside WSL rather than Docker Desktop, run the above commands from within your WSL distribution. The project files can be placed in the WSL filesystem for better I/O performance.
+> **WSL note:** If Docker runs inside WSL (not Docker Desktop), work from within the WSL distribution. Place the project on the WSL filesystem for better I/O performance.
 
 ### Development Mode
 
-For hot-reload on code changes, start with source code mounted:
-
-```sh
-docker compose -p looplink up --build -d
-```
-
-This mounts the project directory into the container so Python changes trigger an automatic server restart.
-
-To also auto-rebuild frontend assets (CSS/JS) on changes, start the webpack watcher:
+Source code is mounted for hot-reload by default. For automatic frontend rebuilding:
 
 ```sh
 docker compose -p looplink --profile dev up -d webpack
 ```
 
-Rebuild the image after adding new Python or npm dependencies:
+Rebuild the image after adding Python or npm dependencies:
 
 ```sh
 docker compose -p looplink build --no-cache web
@@ -63,34 +45,66 @@ docker compose -p looplink build --no-cache web
 
 ---
 
-## Where to Look First
+## Quick Tour
 
-If you're new to this project, here are some good starting points:
+| Endpoint | Description |
+|---|---|
+| `POST /api/transactions/` | Ingest a purchase; returns applied offers and totals |
+| `GET /api/stats/` | System-wide statistics (discounts, stickers, redemptions) |
+| `GET /api/shoppers/<id>/` | Shopper profile, balance, transaction history, redemptions |
+| `POST /api/shoppers/redeem/` | Redeem stickers for a reward |
+| `/shoppers/` | Shopper search portal (HTMX) |
+| `/stats/` | Operations dashboard |
+| `/debug/tx/<id>/` | Transaction trace (applied + non-applied offers) |
 
-- **Complete the Dev Environment Setup**
-  - The instructions are in the following section.
-  - Once complete, you can run `python manage.py runserver` and visit [http://localhost:8000](http://localhost:8000)
+---
 
-- **Using Version Control?**
-  - TIP: Make sure you `git init` (or equivalent in mercurial, svn, etc.) and make an initial commit before you add your code to make future commits readable.
+## API Example
 
-- **Default view (landing page)**  
-  - Python view: `looplink/ui/base/views.py` (the `default` view)  
-  - Template: `looplink/ui/base/templates/base/default.html`
+```sh
+curl -X POST http://localhost:8000/api/transactions/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_id": "TX001",
+    "shopper_id": "SHOPPER1",
+    "store_id": "STORE1",
+    "timestamp": "2026-06-03T10:00:00Z",
+    "items": [
+      {"sku": "SKU-MILK", "name": "Milk", "quantity": 2, "unit_price": 3.50, "category": "dairy"},
+      {"sku": "SKU-CHEESE", "name": "Cheese", "quantity": 1, "unit_price": 5.00, "category": "dairy"},
+      {"sku": "SKU-ORGANIC", "name": "Organic Apple", "quantity": 3, "unit_price": 1.50, "category": "produce"}
+    ]
+  }'
+```
 
-- **HTMX example flow**  
-  - Python view: `looplink/ui/base/views.py` (the HTMX example view using `DjangoHtmxActionMixin`)  
-  - Entry point: `js_entry` named `base/htmx_example`  
-  - Templates:
-    - `looplink/ui/base/templates/base/htmx_example.html`
-    - `looplink/ui/base/templates/base/partials/htmx/initial_state.html`
-    - `looplink/ui/base/templates/base/partials/htmx/step_two.html`
-    - `looplink/ui/base/templates/base/partials/htmx/step_three.html`
+---
 
-- **JavaScript and styles**  
-  - JavaScript entry points are referenced via the `js_entry` template tag.  
-  - App/module-specific assets live in an `assets` folder (for example, `looplink/ui/base/assets/`).  
-  - Global styles live in the `styles` folder at the project root (for example, `styles/looplink.css`), which also includes the Tailwind CSS setup.
+## Running Tests
+
+```sh
+pytest -v
+```
+
+---
+
+## Offer Types
+
+| Type | Description |
+|---|---|
+| `PRODUCT_PERCENT_DISCOUNT` | Percentage off matching SKUs |
+| `BOGO` | Buy One Get One (cheapest units free) |
+| `CART_FIXED_DISCOUNT` | Fixed $ off when basket meets threshold |
+| `STICKER_BURN` | Convert shopper's sticker balance to $ discount |
+| `STICKER_EARN` | Award stickers per $10 spent |
+| `STICKER_CAMPAIGN` | Time/store-limited sticker bonuses |
+
+Offers are evaluated in the order above. See [ARCHITECTURE.md](ARCHITECTURE.md#offer-evaluation-order) for stacking details.
+
+---
+
+## Local Development (without Docker)
+
+See [Dev Environment Setup](#dev-environment-setup) below for `uv`-based setup.
 
 ---
 
@@ -98,190 +112,28 @@ If you're new to this project, here are some good starting points:
 
 ### Prerequisites
 
-#### Invoke
+- Python 3.13+
+- Node.js 22+
+- [uv](https://docs.astral.sh/uv/)
+- Docker (for PostgreSQL and Redis)
 
-This project uses [Invoke](https://www.pyinvoke.org/) for dev automation. Once step 1 below is complete, you can view the list of
-available commands with:
-
-```sh
-inv -l
-```
-
-New commands and updates can be made in the `tasks.py` file.
-
-#### UV
-
-Python dependency management uses [`uv`](https://docs.astral.sh/uv/).
-
-There are [several ways to install `uv`](https://docs.astral.sh/uv/getting-started/installation/). Use whatever method works best for your platform.
-
-- **Linux**
-
-  Ubuntu:
-
-  ```sh
-  sudo snap install astral-uv
-  ```
-
-- **Mac**
-
-  First install [Homebrew](https://brew.sh/), then use it to install `uv`:
-
-  ```sh
-  brew install uv
-  ```
-
-
-### STEP 1: Install Python dependencies
-
-> Python 3.13 is required.
-
-Create a virtualenv with `uv`:
+### Setup
 
 ```sh
-uv venv
-```
-
-Activate the environment:
-
-```sh
-source .venv/bin/activate
-```
-
-Install Python dependencies:
-
-```sh
+uv venv && source .venv/bin/activate
 uv sync --compile-bytecode
-```
-
-
-### STEP 2: Run the automated initial environment setup
-
-```sh
 inv setup-dev-env
-```
-
-### STEP 3: Have JavaScript and CSS (SCSS) automatically rebuild on changes
-
-```sh
-inv npm -w
-```
-
-> NOTE: Restart this command if you add a new `js_entry` path.
-
-
-### STEP 4: Run the development server
-
-```sh
 ./manage.py runserver
 ```
 
-
-### STEP 5: View in browser
-
-With everything running, visit:
-
-```text
-http://localhost:8000/
-```
-
-in your browser.
+Visit [http://localhost:8000](http://localhost:8000).
 
 ---
 
-## Local Development Notes
-
-Make sure you are using the correct virtual environment (see Dev Environment Setup):
+## Linting & Formatting
 
 ```sh
-source .venv/bin/activate
-```
-
-To bring up the Docker containers:
-
-```sh
-inv docker up
-```
-
-To bring down the Docker containers:
-
-```sh
-inv docker down
-```
-
-To rebuild Docker containers:
-
-```sh
-inv docker rebuild
-```
-
-To update requirements:
-
-```sh
-inv requirements
-```
-
-To run the development server (from the terminal):
-
-```sh
-python manage.py runserver
-```
-
-
-## Running Tests
-
-To run tests:
-
-```sh
-pytest
-```
-
-To test a specific app/module:
-
-```sh
-pytest looplink/ui/dashboard/tests/test_something.py
-```
-
-
-## Recommended: Linting
-
-We recommend the following linters. Configs are already provided.
-
-- Python: [Ruff](https://github.com/astral-sh/ruff)
-- JavaScript: [ESLint](https://eslint.org/)
-
-
-## HTML Formatting
-
-High-level:
-
-- Two-space indentation
-- Attribute line breaks
-
-See [this HTML Guide](https://www.commcarehq.org/styleguide/b5/html/) for full details.
-
-
-## CSS Formatting
-
-- Two-space indentation
-
-
-## Dependencies / Requirements
-
-To add a new dependency, run:
-
-```sh
-uv add --dev PACKAGE_NAME
-```
-
-Alternatively, manually add it to `pyproject.toml`. After a manual edit, run:
-
-```sh
-uv lock
-```
-
-Update requirements with:
-
-```sh
-inv requirements
+ruff check .          # Python linting
+ruff format --check . # Python formatting
+eslint .              # JavaScript linting
 ```

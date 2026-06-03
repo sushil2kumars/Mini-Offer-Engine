@@ -58,6 +58,15 @@
         "store_ids": ["STORE1"],
         "bonus_stickers": 1
       }
+    },
+    {
+      "offer_id": "OFFER-BURN-10",
+      "type": "STICKER_BURN",
+      "name": "10 Stickers = $1 Off",
+      "details": {
+        "stickers_per_dollar": 10,
+        "max_stickers": 0
+      }
     }
   ]
 }
