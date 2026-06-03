@@ -1,0 +1,58 @@
+{% load i18n %}{% load common_tags %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+{% js_entry %}
+<!--[if lt IE 7]><html lang="{{ LANGUAGE_CODE }}" class="lt-ie9 lt-ie8 lt-ie7"><![endif]-->
+<!--[if IE 7]><html lang="{{ LANGUAGE_CODE }}" class="lt-ie9 lt-ie8"><![endif]-->
+<!--[if IE 8]><html lang="{{ LANGUAGE_CODE }}" class="lt-ie9"><![endif]-->
+<!--[if gt IE 8]><!--><html lang="{{ LANGUAGE_CODE }}"><!--<![endif]-->
+  <head{% block html_attrs %}{% endblock html_attrs %}>
+    {% captureas title_block %}{% block title %}{% endblock title %}{% endcaptureas %}
+    {% captureas title_context_block %}{% block title_context %}{% endblock title_context %}{% endcaptureas %}
+    <title>
+      {% if title_block %}{{ title_block }}{% endif %}
+      {% if title_block %}{% if title_context_block.strip or not title_context_block %}- {{ title_context_block }}{% endif %}{% endif %}
+      {% if not title_context_block %}Looplink Starter Project{% endif %}
+    </title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="content-language" content="{{ LANGUAGE_CODE }}">
+
+    <link rel="shortcut icon" href="{% static 'base/images/favicon.png' %}" />
+
+    {% include "base/partials/webpack/stylesheets.html" %}
+
+    {% block stylesheets_no_bundler %}
+      {% comment %}
+        IMPORTANT PLEASE READ!!
+        Using this block won't properly bundle your CSS.
+        Please use the js_entry tag to set the JS entry point and import your css
+        from that entry point. Webpack will then take care for bundling it.
+        See base/common_entry.js for the basic entry point structure.
+      {% endcomment %}
+    {% endblock stylesheets_no_bundler %}
+
+    {% block head %}{% endblock head %}
+  </head>
+  <body{% block body_attrs %}{% endblock body_attrs %}>
+    {% block csrf_token_block %}
+      <input id="csrfTokenContainer" type="hidden" value="{{ csrf_token }}">
+    {% endblock csrf_token_block %}
+
+    {% block content %}{% endblock content %}
+
+    {# javascript below this line #}
+
+    {% include "base/partials/webpack/javascript.html" %}
+
+    {% block js_no_bundler %}
+      {% comment %}
+        IMPORTANT PLEASE READ!!
+        Please use this block with discretion as it introduces global JS scopes to the page!
+        Instead, opt for using the js_entry tag to set the JS entry point and create a proper 
+        webpack bundle.
+      {% endcomment %}
+    {% endblock js_no_bundler %}
+
+  </body>
+</html>

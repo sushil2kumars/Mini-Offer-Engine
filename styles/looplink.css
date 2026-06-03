@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+@import "tailwindcss";
+
+@custom-variant htmx-settling {
+  &.htmx-settling,
+  .htmx-settling & {
+    @slot;
+  }
+}
+
+@custom-variant htmx-request {
+  &.htmx-request,
+  .htmx-request & {
+    @slot;
+  }
+}
+
+@custom-variant htmx-swapping {
+  &.htmx-swapping,
+  .htmx-swapping & {
+    @slot;
+  }
+}
+
+@custom-variant htmx-added {
+  &.htmx-added,
+  .htmx-added & {
+    @slot;
+  }
+}
+
+@theme {
+  --font-display: "Outfit", "sans-serif"; 
+  --font-sans: "Outfit", "sans-serif"; 
+}
+
+/* for hiding elements until Alpine.js has fully loaded */
+[x-cloak] {
+  display: none !important;
+}

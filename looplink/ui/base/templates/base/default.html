@@ -1,0 +1,50 @@
+{% extends "base/layout.html" %}
+{% load common_tags %}{# needed for js_entry #}
+
+{% js_entry "base/common_entry" %}
+
+{% block title %}Default Page{% endblock title %}
+
+{% block content %}
+  <div class="p-4 text-md">
+    <h1 class="text-2xl font-bold text-gray-900">
+      Welcome to the Looplink starter project!
+    </h1>
+    <p class="my-2">
+      You can find this page in <code class="font-bold">looplink.ui.base.views</code>.
+      This is the <code class="font-bold">default</code> view.
+    </p>
+    <p class="my-2">
+      <a href="{{ htmx_example_url }}" class="font-bold text-blue-600">Go here</a> to see
+      a view using <code class="font-bold">DjangoHtmxActionMixin</code>
+      (a custom utility we built, located in <code class="font-bold">looplink.django_ext.htmx</code>).
+    </p>
+    <p class="my-2">
+      In the templates, you will see <code class="font-bold">js_entry</code> being used.
+      This extension is something we created. It's a quick way to define a JavaScript entry
+      point for our Webpack build.
+      See its usage in the <code class="font-bold">looplink.ui.base</code> templates.
+    </p>
+    <p class="my-2">
+      The HTMX example uses its own <code class="font-bold">js_entry</code> module to show how
+      to set that up, but you can use <code class="font-bold">base/common_entry</code>
+      if you don't need additional JavaScript.
+    </p>
+    <p class="my-2">
+      Any JavaScript files you want to reference in the Webpack build can be found in an
+      <code class="font-bold">assets</code> folder,
+      like the one in <code class="font-bold">looplink.ui.base</code>.
+      Stylesheets can be found in the <code class="font-bold">styles</code> folder located
+      at the project root.
+    </p>
+    <p class="my-2">
+      Looking to create an API? Check out the docs for
+      <a href="https://www.django-rest-framework.org/">Django REST Framework</a>,
+      or feel free to use a different library.
+    </p>
+    <p class="my-2">
+      Lastly, while we have code-organization best practices at Looplink, we're leaving
+      those specifics open-ended for you. :)
+    </p>
+  </div>
+{% endblock content %}

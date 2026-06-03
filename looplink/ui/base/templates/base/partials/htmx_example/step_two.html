@@ -1,0 +1,25 @@
+<div
+  id="{{ container_id }}"
+  class="htmx-swapping:opacity-0 transition-opacity duration-300"
+  hx-swap="outerHTML swap:300ms"
+>
+  <h2 class="font-bold">Step Two</h2>
+  <p class="my-3">
+    This is the second step of this view.
+  </p>
+  <p>
+    <button
+      class="cursor-pointer px-3 py-2 rounded hover:bg-gray-50 border border-gray-500"
+      type="button"
+      hx-post="{{ request.path_info }}"
+      dj-hx-action="step_three"
+      hx-target="#{{ container_id }}"
+    >
+      View Step Three
+    </button>
+  </p>
+  <p class="my-3">
+    Did you check out the network logs (browser dev tools)? Only a partial refresh
+    of the view was needed.
+  </p>
+</div>

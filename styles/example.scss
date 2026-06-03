@@ -1,0 +1,12 @@
+@use "sass:color";
+
+$color-test: #3490dc;
+
+.example-text-style {
+  color: $color-test;
+  font-weight: bold;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid color.adjust($color-test, $lightness: -10%);
+  border-radius: .5rem;
+}

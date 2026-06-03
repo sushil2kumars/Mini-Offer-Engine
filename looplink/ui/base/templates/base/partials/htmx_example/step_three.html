@@ -1,0 +1,25 @@
+<div
+  id="{{ container_id }}"
+  class="htmx-swapping:opacity-0 transition-opacity duration-300"
+  hx-swap="outerHTML swap:300ms"
+>
+  <h2 class="font-bold">Step Three</h2>
+  <p class="my-3">
+    This is the final (third) step of this view.
+  </p>
+  <p>
+    <button
+      class="cursor-pointer px-3 py-2 rounded hover:bg-gray-50 border border-gray-500"
+      type="button"
+      hx-get="{{ request.path_info }}"
+      dj-hx-action="initial_state"
+      hx-target="#{{ container_id }}"
+    >
+      Go back to the Initial State
+    </button>
+  </p>
+  <p class="my-3">
+    Additionally, did you see how much JavaScript was needed to set up this page?
+    It's nice and minimal.
+  </p>
+</div>

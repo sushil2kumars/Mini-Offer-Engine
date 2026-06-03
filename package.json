@@ -1,0 +1,38 @@
+{
+    "name": "looplink-starter-project",
+    "version": "1.0.0",
+    "description": "",
+    "private": true,
+    "scripts": {
+        "build": "node webpack/js_entry/build.js && webpack --mode development --config webpack/config.js",
+        "watch": "node webpack/js_entry/build.js && webpack --mode development --config webpack/config.js --watch"
+    },
+    "author": "",
+    "homepage": "http://todo.com/",
+    "devDependencies": {
+        "@babel/core": "7.28.0",
+        "@tailwindcss/postcss": "^4.1.11",
+        "autoprefixer": "^10.4.21",
+        "babel-loader": "10.0.0",
+        "css-loader": "7.1.2",
+        "css-minimizer-webpack-plugin": "^7.0.2",
+        "exports-loader": "5.0.0",
+        "mini-css-extract-plugin": "2.9.2",
+        "postcss": "^8.5.6",
+        "postcss-import": "16.1.1",
+        "postcss-loader": "8.1.1",
+        "postcss-preset-env": "10.2.4",
+        "sass": "1.89.2",
+        "sass-loader": "16.0.5",
+        "style-loader": "4.0.0",
+        "tailwindcss": "^4.1.11",
+        "webpack": "5.100.2",
+        "webpack-cli": "6.0.1"
+    },
+    "dependencies": {
+        "@alpinejs/collapse": "3.14.9",
+        "@alpinejs/focus": "3.14.9",
+        "alpinejs": "3.14.9",
+        "htmx.org": "2.0.6"
+    }
+}

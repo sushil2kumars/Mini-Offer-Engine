@@ -1,0 +1,102 @@
+
+[project]
+name = "looplink-starter-project"
+version = "0.1.0"
+description = "Looplink Starter Project"
+readme = "README.md"
+requires-python = ">=3.13"
+
+
+dependencies = [
+    "django",
+    "django-bulk-update",
+    "django-components",
+    "django-environ",
+    "django-htmx", # use for HTTP Tools and Middleware, but not template tags
+    "django-redis-sessions",
+    "django-redis",
+    "djangorestframework",
+    "jinja2",
+    "psycopg[binary]",
+    "redis",
+    "requests",
+    "invoke",
+    "termcolor",
+    "gunicorn",
+    "ipython", # for nicer django shell experience
+]
+
+[tool.uv]
+required-version = ">=0.7.0"
+default-groups = ["dev"]
+no-binary-package = []
+
+[dependency-groups]
+dev = [
+    "djlint",
+    "ruff",
+    {include-group = "test"},
+]
+test = [
+    "freezegun",
+    "pytest",
+    "pytest-django",
+    "pytest-httpx",
+    "pytest-mock>=3.14.1",
+    "pytest-xdist",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.1"
+norecursedirs = [
+    ".*",
+    "*.egg",
+    "artifacts",
+    "docker",
+    "git-hooks",
+    "locale",
+    "node_modules",
+    "requirements",
+    "scripts",
+    "sharedfiles",
+    "staticfiles",
+]
+python_files = [
+    "test_*.py",
+    "tests.py",
+    "*/tests/*.py",
+]
+pythonpath = [
+    ".",
+]
+DJANGO_SETTINGS_MODULE = "looplink.project.settings"
+
+[tool.ruff]
+exclude = [
+    ".direnv",
+    ".git",
+    ".ruff_cache",
+    "node_modules",
+    'migrations'
+]
+
+line-length = 120
+indent-width = 4
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "DJ", "PT"]
+ignore = ["PT019"]
+fixable = ["ALL"]
+unfixable = []
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.flake8-pytest-style]
+mark-parentheses = true
+fixture-parentheses = true

@@ -1,0 +1,29 @@
+{% extends "base/layout.html" %}
+{% load common_tags %}{# needed for js_entry #}
+
+{# Best practice: keep common_entry ready to go for HTMX and Alpine without additional file-level JS #}
+{# Define a new entry point for page- or module-specific behavior, like the entry point below. #}
+{% js_entry "base/htmx_example" %}
+
+{% block title %}HTMX Action Mixin Example Page{% endblock title %}
+
+{% block content %}
+  <div class="p-4 text-md">
+    <h1 class="text-2xl/7 font-bold text-gray-900 mb-5">
+      This view uses the <code class="font-bold">DjangoHtmxActionMixin</code>
+    </h1>
+    <p class="mb-2">
+      The mixin can be found in <code class="font-bold">looplink.django_ext.htmx</code>,
+      with usage guidance in the docstrings.
+    </p>
+    <div
+      class="mt-5 htmx-swapping:opacity-0 transition-opacity duration-300"
+      hx-get="{{ request.path_info }}"
+      dj-hx-action="initial_state"
+      hx-trigger="load"
+      hx-swap="swap:300ms"
+    >
+      {% include "base/partials/htmx/loading_indicator.html" %}
+    </div>
+  </div>
+{% endblock content %}

@@ -1,0 +1,12 @@
+{% load common_tags %}
+{% load webpack_tags %}
+
+{% if js_entry %}
+  {% for bundle_path in js_entry|webpack_css_bundles %}
+    <link 
+      type="text/css"
+      rel="stylesheet"
+      media="all"
+      href="{% static bundle_path %}" />
+  {% endfor %}
+{% endif %}

@@ -1,0 +1,26 @@
+<div
+  id="{{ container_id }}"
+  class="htmx-swapping:opacity-0 transition-opacity duration-300"
+  hx-swap="outerHTML swap:300ms"
+>
+  <h2 class="font-bold">Initial State</h2>
+  <p class="my-3">
+    This is the initial state of this view.
+  </p>
+  <p>
+    <button
+      class="cursor-pointer px-3 py-2 rounded hover:bg-gray-50 border border-gray-500"
+      type="button"
+      hx-post="{{ request.path_info }}"
+      dj-hx-action="step_two"
+      hx-target="#{{ container_id }}"
+    >
+      View Step Two
+    </button>
+  </p>
+  <p class="example-text-style">
+    This text uses a style from the module-specific SCSS loaded into the
+    <code class="font-bold">base/htmx_example</code> entry point.
+    A helpful hint if you want to use SCSS instead of pure CSS or Tailwind CSS. :)
+  </p>
+</div>
