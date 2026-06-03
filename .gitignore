@@ -212,3 +212,25 @@ data/offer_intents/
 
 campaigns-config/
 !looplink/lib/
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Windows system files
+Thumbs.db
+Desktop.ini
+
+# Linux file manager
+.directory
+
+# Environment-specific local overrides
+.env.local
+.env.*.local
+
+# Editor swap files
+*.swp
+*.swo
+
+# Django migrations - uncomment to ignore all migrations:
+# */migrations/*.py
+# !*/migrations/__init__.py
